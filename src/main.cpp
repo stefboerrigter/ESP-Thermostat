@@ -11,10 +11,6 @@
 #include "version.h"
 #include "display.h"
 
-//DS18 temperature sensor config
-#define DS18_GPIO     D5 //default pin
-#define DS18_PARASITE false //default not parasite
-
 //// Function definitions:
 bool LoadSaveCallback(MYESP_FSACTION action, JsonObject settings);
 bool SetListCallback(MYESP_FSACTION action, uint8_t wc, const char * setting, const char * value);
@@ -34,11 +30,10 @@ uint8_t _project_cmds_count = ArraySize(project_cmds);
 
 typedef struct {
     uint32_t timestamp;      // for internal timings, via millis()
-    uint8_t  ds18Sensors;    // count of dallas sensors
-    DS18 ds18;               //ds18 object
+    TempSensor tempSensor;
     MyESP myESP;
     Display display;
-//    Service service;
+    float setPointTemp;
 } Admin;
 
 
@@ -47,6 +42,7 @@ Admin m_admin;
 
 
 void setup() {
+    m_admin.setPointTemp = 20.0;
     // set up myESP for Wifi, MQTT, MDNS and Telnet callbacks
     m_admin.myESP.setTelnet(TelnetCommandCallback, TelnetCallback);      // set up Telnet commands
     //m_admin.myESP.setWIFI(WIFICallback);                                 // wifi callback
@@ -55,18 +51,16 @@ void setup() {
     m_admin.myESP.setOTA(OTACallback_pre, OTACallback_post);             // OTA callback which is called when OTA is starting and stopping
     m_admin.myESP.begin(APP_HOSTNAME, APP_NAME, APP_VERSION, APP_URL, APP_UPDATEURL);
   //  m_admin.service.setupServices(); //Connect all required services (web / telnet / OTA / MQTT)
-    m_admin.ds18Sensors = m_admin.ds18.setup(DS18_GPIO, DS18_PARASITE); // returns #sensors
+    m_admin.tempSensor.initialize();
     m_admin.display.initialize();
 }
 
 void loop() {
     m_admin.myESP.loop(); //Keep WiFI, MQTT and stuf active..
     /* Process sensors if any */
-    if (m_admin.ds18Sensors) {
-        m_admin.ds18.loop();
-    }
+    m_admin.tempSensor.process();
 
-    m_admin.display.Process();
+    m_admin.display.process(m_admin.tempSensor.getTemperature(), m_admin.setPointTemp);
 }
 
 
@@ -246,7 +240,7 @@ bool SetListCallback(MYESP_FSACTION action, uint8_t wc, const char * setting, co
 
 // Show command - display stats on an 's' command
 void showInfo() {
-    myDebug_P(PSTR("%sESP-Valve system stats:%s"), COLOR_BOLD_ON, COLOR_BOLD_OFF);
+    myDebug_P(PSTR("%sESP-Thermostat system stats:%s"), COLOR_BOLD_ON, COLOR_BOLD_OFF);
     myDebug_P(PSTR("  TO BE IMPLMENTED"));
 }
 

@@ -32,8 +32,8 @@ auto    Rtcmem     = reinterpret_cast<volatile RtcmemData *>(RTCMEM_ADDR);
 
 // constructor
 MyESP::MyESP() {
-    _general_hostname = strdup("ESPValve");
-    _app_name         = strdup("ESPValveApp");
+    _general_hostname = strdup("ESPThermostat");
+    _app_name         = strdup("ESPThermostatApp");
     _app_version      = strdup(MYESP_VERSION);
     _app_url          = nullptr;
     _app_updateurl    = nullptr;

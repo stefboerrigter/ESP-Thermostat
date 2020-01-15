@@ -28,8 +28,7 @@ Display::~Display()
 //////////////////////////////////////////////
 void Display::initialize()
 {
-
-      // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
@@ -56,20 +55,23 @@ void Display::initialize()
 }
 
 //////////////////////////////////////////////
-void Display::Process()
+void Display::process(float temperature, float setPoint)
 {
-    static int temperature = 200; //20.0
 
-    char temp_cur[20] = "A: 20.0 C";
-    char temp_set[20] = "S: 21.0 C";
+    char temp_cur[20] = "A 20.0 °C";
+    char temp_set[20] = "S 21.0 °C";
+    char temp_string[4] = {'\0', '\0','\0', '\0'};
+
     size_t i;
     size_t len;
 
-    temperature += 1;
-    if(temperature > 220)
-        temperature = 180;
-    snprintf((char *)&temp_cur[0], 20, "A: %d.%d C", temperature / 10, (temperature % 10)); 
-    myDebug_P(PSTR("[Display] %s"), (char *)&temp_cur);
+    dtostrf(temperature, 2, 1, temp_string);
+    snprintf((char *)&temp_cur[0], 20, "A: %s °C",temp_string); 
+    dtostrf(setPoint, 2, 1, temp_string);
+    snprintf((char *)&temp_set[0], 20, "A: %s °C",temp_string); 
+
+    myDebug_P(PSTR("[Display] Process %s <-> %s"), (char *)&temp_cur,  (char *)&temp_set);
+
     display.clearDisplay();
 
     display.setTextSize(2);      // Normal 1:1 pixel scale

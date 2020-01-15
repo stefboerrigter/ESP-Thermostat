@@ -5,7 +5,7 @@ class Display {
     public:
         Display();
         ~Display();
-        void Process();
+        void process(float temperature, float setPoint);
         void initialize();
     private:
         void testdrawline();
