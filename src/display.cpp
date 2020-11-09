@@ -10,7 +10,7 @@
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
-
+#define STRLEN 20
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -55,22 +55,29 @@ void Display::initialize()
 }
 
 //////////////////////////////////////////////
-void Display::process(float temperature, float setPoint)
+void Display::process(float temperature, float setPoint, float humidity)
 {
 
-    char temp_cur[20] = "A 20.0 °C";
-    char temp_set[20] = "S 21.0 °C";
+    char temp_cur[STRLEN] = "A 20.0 °C";
+    char temp_set[STRLEN] = "S 21.0 °C";
+    char hum_curr[STRLEN] = "  55.0%  ";
     char temp_string[4] = {'\0', '\0','\0', '\0'};
 
     size_t i;
     size_t len;
 
-    dtostrf(temperature, 2, 1, temp_string);
-    snprintf((char *)&temp_cur[0], 20, "A: %s °C",temp_string); 
-    dtostrf(setPoint, 2, 1, temp_string);
-    snprintf((char *)&temp_set[0], 20, "A: %s °C",temp_string); 
+    memset(temp_cur, 0, STRLEN);
+    memset(temp_set, 0, STRLEN);
+    memset(hum_curr, 0, STRLEN);
 
-    myDebug_P(PSTR("[Display] Process %s <-> %s"), (char *)&temp_cur,  (char *)&temp_set);
+    dtostrf(temperature, 2, 1, temp_string);
+    snprintf((char *)&temp_cur[0], 20, "C : %s C",temp_string); 
+    dtostrf(setPoint, 2, 1, temp_string);
+    snprintf((char *)&temp_set[0], 20, "Sp: %s C",temp_string); 
+    dtostrf(humidity, 2, 0, temp_string);
+    snprintf((char *)&hum_curr[0], 20, "     %s%%",temp_string); 
+
+    myDebug_P(PSTR("[Display] Process %s <-> %s [%s]"), (char *)&temp_cur,  (char *)&temp_set, (char *)&hum_curr);
 
     display.clearDisplay();
 
@@ -87,14 +94,25 @@ void Display::process(float temperature, float setPoint)
         //else          display.write(i);
         display.write(temp_cur[i]);
     }
-    //display.setCursor(0, 40);     // Start at top-left corner
+    
+    display.setCursor(0, 20);     // Start at top-left corner, 40 down
     len = strnlen((const char *)&temp_set, 50);
-    display.write(' ');
+    //display.write(' ');
     for(i=0; i < len; i++) {
         //if(i == '\n') display.write(' ');
         //else          display.write(i);
         display.write(temp_set[i]);
     }
+    display.setCursor(0, 40);     // Start at top-left corner, 40 down
+    len = strnlen((const char *)&hum_curr, 50);
+    //display.write(' ');
+    for(i=0; i < len; i++) {
+        //if(i == '\n') display.write(' ');
+        //else          display.write(i);
+        display.write(hum_curr[i]);
+    }
+
+
     display.display();
-    delay(10);
+    //delay(10);
 }

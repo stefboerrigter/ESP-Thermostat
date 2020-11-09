@@ -58,9 +58,11 @@ void setup() {
 void loop() {
     m_admin.myESP.loop(); //Keep WiFI, MQTT and stuf active..
     /* Process sensors if any */
+    delay(2000);
     m_admin.tempSensor.process();
 
-    m_admin.display.process(m_admin.tempSensor.getTemperature(), m_admin.setPointTemp);
+    m_admin.display.process(m_admin.tempSensor.getTemperature(), m_admin.setPointTemp, m_admin.tempSensor.getHumidity());
+    
 }
 
 

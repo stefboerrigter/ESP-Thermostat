@@ -5,9 +5,9 @@
 #pragma once
 
 #include "DHT.h"
-
-#define DHTPIN 2 //D4
-#define DHTTYPE DHT11
+// #define DHT_DEBUG  //DEBUGGING INFO
+#define DHTPIN D7 //13 //D4
+#define DHTTYPE DHT21
 
 class TempSensor {
     public:

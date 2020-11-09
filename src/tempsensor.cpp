@@ -32,7 +32,7 @@ void TempSensor::process()
   
   hic = pDht->computeHeatIndex(t, h, false);
 
-  myDebug_P(PSTR("Hum %f | Temp %f °C| Ind: %f °C"), h, t, hic);
+  myDebug_P(PSTR("Hum %d | Temp %d °C| Ind: %d °C"), (int)h, (int)t, (int)hic);
 }
 
 float TempSensor::getHumidity()
