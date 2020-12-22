@@ -10,15 +10,41 @@
 #include "utils.h"
 #include "version.h"
 #include "display.h"
+#include "config.h"
+
+//// structure definitions:
+typedef struct {
+    uint32_t processUpdateCtr;
+    uint32_t tempUpdateValue;
+} ProcessUpdates;
+
+typedef struct {
+    float temperature;
+    float humidity;
+    float relativeTemp;
+} TempSensorValue;
+
+typedef struct {
+    uint32_t timestamp;      // for internal timings, via millis()
+    TempSensor tempSensor;
+    MyESP myESP;
+    Display display;
+    float setPointTemp;
+    ProcessUpdates pUpdate;
+    TempSensorValue SVcurrent;
+    TempSensorValue SVprevious;
+} Admin;
 
 //// Function definitions:
 bool LoadSaveCallback(MYESP_FSACTION action, JsonObject settings);
 bool SetListCallback(MYESP_FSACTION action, uint8_t wc, const char * setting, const char * value);
 void OTACallback_pre();
 void OTACallback_post();
+void WIFICallback();
 void TelnetCallback(uint8_t event);
 void TelnetCommandCallback(uint8_t wc, const char * commandLine);
 void MQTTCallback(unsigned int type, const char * topic, const char * message);
+bool compareSensorValues(TempSensorValue *current, TempSensorValue *previous, float diff);
 
 static const command_t project_cmds[] PROGMEM = {
     {true, "led <on | off>", "toggle status LED on/off"},
@@ -28,24 +54,20 @@ static const command_t project_cmds[] PROGMEM = {
 };
 uint8_t _project_cmds_count = ArraySize(project_cmds);
 
-typedef struct {
-    uint32_t timestamp;      // for internal timings, via millis()
-    TempSensor tempSensor;
-    MyESP myESP;
-    Display display;
-    float setPointTemp;
-} Admin;
-
-
 //Local administration object of struct
 Admin m_admin;
 
 
 void setup() {
+    m_admin.pUpdate.tempUpdateValue = 10; //every Nth iteration
+    m_admin.pUpdate.processUpdateCtr = 0;
+
     m_admin.setPointTemp = 20.0;
+    memset(&(m_admin.SVprevious), 0, sizeof(TempSensorValue));
+
     // set up myESP for Wifi, MQTT, MDNS and Telnet callbacks
     m_admin.myESP.setTelnet(TelnetCommandCallback, TelnetCallback);      // set up Telnet commands
-    //m_admin.myESP.setWIFI(WIFICallback);                                 // wifi callback
+    m_admin.myESP.setWIFI(WIFICallback);                                 // wifi callback
     m_admin.myESP.setMQTT(MQTTCallback);                                 // MQTT ip, username and password taken from the SPIFFS settings
     m_admin.myESP.setSettings(LoadSaveCallback, SetListCallback, false); // default is Serial off
     m_admin.myESP.setOTA(OTACallback_pre, OTACallback_post);             // OTA callback which is called when OTA is starting and stopping
@@ -58,14 +80,44 @@ void setup() {
 void loop() {
     m_admin.myESP.loop(); //Keep WiFI, MQTT and stuf active..
     /* Process sensors if any */
-    delay(2000);
-    m_admin.tempSensor.process();
+    if(m_admin.pUpdate.processUpdateCtr++ % m_admin.pUpdate.tempUpdateValue == 0)
+    {
+        m_admin.tempSensor.process();
+        m_admin.SVcurrent.temperature = m_admin.tempSensor.getTemperature();
+        m_admin.SVcurrent.humidity = m_admin.tempSensor.getHumidity();
+        m_admin.SVcurrent.relativeTemp = m_admin.tempSensor.getRelTemp();
+        m_admin.display.process(m_admin.SVcurrent.temperature , 
+            m_admin.setPointTemp, m_admin.SVcurrent.humidity, 
+            m_admin.SVcurrent.relativeTemp);
+        if(compareSensorValues(&m_admin.SVcurrent, &m_admin.SVprevious, 0.1F))
+        {
+            myDebug_P(PSTR("MQTT UPDATE"));
+        }
+        //Copy the current values to the previous.
+        memcpy_P(&m_admin.SVprevious, &m_admin.SVcurrent, sizeof(TempSensorValue));
+    }
 
-    m_admin.display.process(m_admin.tempSensor.getTemperature(), m_admin.setPointTemp, m_admin.tempSensor.getHumidity());
-    
+
+    delay(100); //sigh
 }
 
 
+bool compareSensorValues(TempSensorValue *current, TempSensorValue *previous, float diff)
+{
+    if((current->temperature < (previous->temperature - diff)) || 
+       (current->temperature > (previous->temperature + diff)))
+    {
+        return true;
+    }
+    if((current->humidity < (previous->humidity - diff)) || 
+       (current->humidity > (previous->humidity + diff)))
+    {
+        return true;
+    }
+    //No need to check the relative temp, since if both changed, this changed as well.
+
+    return false; //Match
+}
 
 // callback for loading/saving settings to the file system (SPIFFS)
 bool LoadSaveCallback(MYESP_FSACTION action, JsonObject settings) {
@@ -325,40 +377,10 @@ void OTACallback_post() {
 void MQTTCallback(unsigned int type, const char * topic, const char * message) {
     // we're connected. lets subscribe to some topics
     if (type == MQTT_CONNECT_EVENT) {
-#ifdef MQTT_EXAMPLES
-        // subscribe to the 4 heating circuits for receiving setpoint temperature and modes
-        char topic_s[50];
-        char buffer[4];
-        for (uint8_t hc = 1; hc <= EMS_THERMOSTAT_MAXHC; hc++) {
-            strlcpy(topic_s, TOPIC_THERMOSTAT_CMD_TEMP, sizeof(topic_s));
-            strlcat(topic_s, itoa(hc, buffer, 10), sizeof(topic_s));
-            myESP.mqttSubscribe(topic_s);
 
-            strlcpy(topic_s, TOPIC_THERMOSTAT_CMD_MODE, sizeof(topic_s));
-            strlcat(topic_s, itoa(hc, buffer, 10), sizeof(topic_s));
-            myESP.mqttSubscribe(topic_s);
-        }
-
-        // generic incoming MQTT command for Thermostat
-        // this is used for example for setting daytemp, nighttemp, holidaytemp
-        myESP.mqttSubscribe(TOPIC_THERMOSTAT_CMD);
-
-        // generic incoming MQTT command for Boiler
-        // this is used for example for comfort, flowtemp
-        myESP.mqttSubscribe(TOPIC_BOILER_CMD);
-
-        // these two need to be unqiue topics
-        myESP.mqttSubscribe(TOPIC_BOILER_CMD_WWACTIVATED);
-        myESP.mqttSubscribe(TOPIC_BOILER_CMD_WWTEMP);
-
-        // generic incoming MQTT command for EMS-ESP
-        // this is used for example for shower_coldshot
-        myESP.mqttSubscribe(TOPIC_GENERIC_CMD);
-
-        // shower data
-        // for receiving shower_Timer and shower_alert switches
-        myESP.mqttSubscribe(TOPIC_SHOWER_DATA);
-#endif
+        // generic incoming MQTT command for Settings
+        // this is used for example for setpoint override setting
+        myESP.mqttSubscribe(TOPIC_SETTINGS);
         return;
     }
 
@@ -366,9 +388,8 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
     if (type != MQTT_MESSAGE_EVENT) {
         return;
     }
-#ifdef MQTT_EXAMPLES
     // check first for generic commands
-    if (strcmp(topic, TOPIC_GENERIC_CMD) == 0) {
+    if (strcmp(topic, TOPIC_SETTINGS) == 0) {
         // convert JSON and get the command
         StaticJsonDocument<100> doc;
         DeserializationError    error = deserializeJson(doc, message); // Deserialize the JSON document
@@ -377,24 +398,15 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             return;
         }
         const char * command = doc["cmd"];
-
+        myDebug_P(PSTR("[MQTT] Received: %s %s"), topic, command);
         // Check whatever the command is and act accordingly
-        if (strcmp(command, TOPIC_SHOWER_COLDSHOT) == 0) {
-            _showerColdShotStart();
-            return;
-        }
+        //if (strcmp(command, TOPIC_SHOWER_COLDSHOT) == 0) {
+        //    _showerColdShotStart();
+        //    return;
+        //}
 
         return; // no match for generic commands
     }
-
-    // example
-    if (strcmp(topic, "BLALAT") == 0) {
-        uint8_t t = atoi((char *)message);
-        //Perform Action
-        publishValues(true);
-        return;
-    }
-#endif
 }
 
 

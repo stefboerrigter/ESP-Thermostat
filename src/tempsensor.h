@@ -17,9 +17,11 @@ class TempSensor {
         void process();
         float getTemperature();
         float getHumidity();
+        float getRelTemp();
     private:
         DHT *pDht;
         float curr_temp;
         float curr_hum;
+        float curr_rel_temp;
 };
 

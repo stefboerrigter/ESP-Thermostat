@@ -5,6 +5,7 @@ TempSensor::TempSensor(){
     pDht = new DHT(DHTPIN, DHTTYPE);
     curr_hum = 200.0;
     curr_temp = 99.0;
+    curr_rel_temp = 200.0;
 }
 
 TempSensor::~TempSensor(){
@@ -32,7 +33,14 @@ void TempSensor::process()
   
   hic = pDht->computeHeatIndex(t, h, false);
 
-  myDebug_P(PSTR("Hum %d | Temp %d °C| Ind: %d °C"), (int)h, (int)t, (int)hic);
+  curr_rel_temp = hic;
+
+  //myDebug_P(PSTR("Hum %d | Temp %d °C| Ind: %d °C"), (int)h, (int)t, (int)hic);
+}
+
+float TempSensor::getRelTemp()
+{
+    return curr_rel_temp;
 }
 
 float TempSensor::getHumidity()
