@@ -1,0 +1,1 @@
+#define TOPIC_SETTINGS "settings"

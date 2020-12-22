@@ -16,7 +16,7 @@ class EMSESPHelp extends Component {
 
     render() {
         return (
-            <SectionContent title='EMS-ESP Help' titleGutter>
+            <SectionContent title='EMS-Thermostat Help' titleGutter>
 
                 <List>
 

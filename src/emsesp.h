@@ -49,6 +49,7 @@
 #include "shower.h"
 #include "roomcontrol.h"
 #include "command.h"
+#include "thermostat.h"
 
 #define WATCH_ID_NONE 0 // no watch id set
 
@@ -178,6 +179,7 @@ class EMSESP {
     static Shower       shower_;
     static RxService    rxservice_;
     static TxService    txservice_;
+    static ThermostatDevice  mThermostat;
 
     // web controllers
     static ESP8266React       esp8266React;
@@ -227,6 +229,7 @@ class EMSESP {
     static uint8_t  unique_id_count_;
     static bool     trace_raw_;
     static uint64_t tx_delay_;
+
 };
 
 } // namespace emsesp

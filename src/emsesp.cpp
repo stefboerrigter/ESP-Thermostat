@@ -53,6 +53,7 @@ System       EMSESP::system_;       // core system services
 Console      EMSESP::console_;      // telnet and serial console
 DallasSensor EMSESP::dallassensor_; // Dallas sensors
 Shower       EMSESP::shower_;       // Shower logic
+ThermostatDevice EMSESP::mThermostat; //Thermostat
 
 // static/common variables
 uint8_t  EMSESP::actual_master_thermostat_ = EMSESP_DEFAULT_MASTER_THERMOSTAT; // which thermostat leads when multiple found
@@ -1007,11 +1008,12 @@ void EMSESP::start() {
     console_.start();      // telnet and serial console
     mqtt_.start();         // mqtt init
     system_.start();       // starts syslog, uart, sets version, initializes LED. Requires pre-loaded settings.
-    shower_.start();       // initialize shower timer and shower alert
-    dallassensor_.start(); // dallas external sensors
+    //shower_.start();       // initialize shower timer and shower alert
+    //dallassensor_.start(); // dallas external sensors
     webServer.begin();     // start web server
+    mThermostat.start();
 
-    emsdevices.reserve(5); // reserve space for initially 5 devices to avoid mem
+    //emsdevices.reserve(5); // reserve space for initially 5 devices to avoid mem
 
     LOG_INFO(F("EMS Device library loaded with %d records"), device_library_.size());
 
@@ -1030,18 +1032,19 @@ void EMSESP::loop() {
     }
 
     system_.loop();       // does LED and checks system health, and syslog service
-    rxservice_.loop();    // process any incoming Rx telegrams
-    shower_.loop();       // check for shower on/off
-    dallassensor_.loop(); // this will also send out via MQTT
+    //rxservice_.loop();    // process any incoming Rx telegrams
+    //shower_.loop();       // check for shower on/off
+    //dallassensor_.loop(); // this will also send out via MQTT
     publish_all_loop();   // See which topics need publishing to MQTT and queue them
     mqtt_.loop();         // sends out anything in the MQTT queue
     console_.loop();      // telnet/serial console
 
     // force a query on the EMS devices to fetch latest data at a set interval (1 min)
-    if ((uuid::get_uptime() - last_fetch_ > EMS_FETCH_FREQUENCY)) {
-        last_fetch_ = uuid::get_uptime();
-        fetch_device_values();
-    }
+    //if ((uuid::get_uptime() - last_fetch_ > EMS_FETCH_FREQUENCY)) {
+    //    last_fetch_ = uuid::get_uptime();
+    //    fetch_device_values();
+    //}
+    mThermostat.loop();
 
     delay(1); // helps telnet catch up
 }
